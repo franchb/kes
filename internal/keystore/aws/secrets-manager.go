@@ -11,11 +11,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
+	"github.com/aws/smithy-go"
+	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/minio/kes"
 	xhttp "github.com/minio/kes/internal/http"
 	"github.com/minio/kes/internal/keystore"
@@ -55,51 +57,73 @@ type Config struct {
 
 // Connect establishes and returns a Conn to a AWS SecretManager
 // using the given config.
-func Connect(ctx context.Context, config *Config) (*Store, error) {
-	credentials := credentials.NewStaticCredentials(
-		config.Login.AccessKey,
-		config.Login.SecretKey,
-		config.Login.SessionToken,
-	)
-	if config.Login.AccessKey == "" && config.Login.SecretKey == "" && config.Login.SessionToken == "" {
-		// If all login credentials (access key, secret key and session token) are empty
-		// we pass no (not empty) credentials to the AWS SDK. The SDK will try to fetch
-		// the credentials from:
-		//  - Environment Variables
-		//  - Shared Credentials file
-		//  - EC2 Instance Metadata
-		// In particular, when running a kes server on an EC2 instance, the SDK will
-		// automatically fetch the temp. credentials from the EC2 metadata service.
-		// See: AWS IAM roles for EC2 instances.
-		credentials = nil
+func Connect(ctx context.Context, cfg *Config) (*Store, error) {
+	// Configure AWS SDK v2 with custom options
+	opts := []func(*config.LoadOptions) error{
+		config.WithRegion(cfg.Region),
 	}
 
-	session, err := session.NewSessionWithOptions(session.Options{
-		Config: aws.Config{
-			Endpoint:    aws.String(config.Addr),
-			Region:      aws.String(config.Region),
-			Credentials: credentials,
-		},
-		SharedConfigState: session.SharedConfigDisable,
-	})
+	// Configure credentials
+	if cfg.Login.AccessKey != "" || cfg.Login.SecretKey != "" || cfg.Login.SessionToken != "" {
+		// Use static credentials if any credential is provided
+		opts = append(opts, config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(
+				cfg.Login.AccessKey,
+				cfg.Login.SecretKey,
+				cfg.Login.SessionToken,
+			),
+		))
+	}
+	// If no credentials are provided, the SDK will automatically try:
+	//  - Environment Variables
+	//  - Shared Credentials file
+	//  - EC2 Instance Metadata
+	// In particular, when running a kes server on an EC2 instance, the SDK will
+	// automatically fetch the temp. credentials from the EC2 metadata service.
+	// See: AWS IAM roles for EC2 instances.
+
+	awsCfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &Store{
-		config: *config,
-		client: secretsmanager.New(session),
+	// Create Secrets Manager client with additional options if needed
+	var clientOpts []func(*secretsmanager.Options)
+
+	// If a custom endpoint was specified, configure it using EndpointResolverV2
+	if cfg.Addr != "" {
+		clientOpts = append(clientOpts, func(o *secretsmanager.Options) {
+			o.EndpointResolverV2 = &customEndpointResolver{
+				endpoint: "https://" + cfg.Addr,
+			}
+		})
 	}
+
+	c := &Store{
+		config: *cfg,
+		client: secretsmanager.NewFromConfig(awsCfg, clientOpts...),
+	}
+
 	if _, err = c.Status(ctx); err != nil {
 		return nil, err
 	}
 	return c, nil
 }
 
+// customEndpointResolver implements the EndpointResolverV2 interface for Secrets Manager
+type customEndpointResolver struct {
+	endpoint string
+}
+
+func (r *customEndpointResolver) ResolveEndpoint(ctx context.Context,
+	params secretsmanager.EndpointParameters) (smithyendpoints.Endpoint, error) {
+	return secretsmanager.NewDefaultEndpointResolverV2().ResolveEndpoint(ctx, params)
+}
+
 // Store is an AWS SecretsManager secret store.
 type Store struct {
 	config Config
-	client *secretsmanager.SecretsManager
+	client *secretsmanager.Client
 }
 
 func (s *Store) String() string { return "AWS SecretsManager: " + s.config.Addr }
@@ -107,7 +131,13 @@ func (s *Store) String() string { return "AWS SecretsManager: " + s.config.Addr 
 // Status returns the current state of the AWS SecretsManager instance.
 // In particular, whether it is reachable and the network latency.
 func (s *Store) Status(ctx context.Context) (kes.KeyStoreState, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.client.Endpoint, nil)
+	// Build the endpoint URL
+	endpoint := "https://" + s.config.Addr
+	if s.config.Addr == "" {
+		endpoint = fmt.Sprintf("https://secretsmanager.%s.amazonaws.com", s.config.Region)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return kes.KeyStoreState{}, err
 	}
@@ -132,22 +162,25 @@ func (s *Store) Status(ctx context.Context) (kes.KeyStoreState, error) {
 // encrypt the values. Otherwise, AWS will use the default key ID for
 // encrypting secrets at the AWS SecretsManager.
 func (s *Store) Create(ctx context.Context, name string, value []byte) error {
-	createOpt := secretsmanager.CreateSecretInput{
+	createInput := &secretsmanager.CreateSecretInput{
 		Name:         aws.String(name),
 		SecretString: aws.String(string(value)),
 	}
 	if s.config.KMSKeyID != "" {
-		createOpt.KmsKeyId = aws.String(s.config.KMSKeyID)
+		createInput.KmsKeyId = aws.String(s.config.KMSKeyID)
 	}
-	if _, err := s.client.CreateSecretWithContext(ctx, &createOpt); err != nil {
+
+	_, err := s.client.CreateSecret(ctx, createInput)
+	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return err
 		}
-		if err, ok := err.(awserr.Error); ok {
-			if err.Code() == secretsmanager.ErrCodeResourceExistsException {
-				return kesdk.ErrKeyExists
-			}
+
+		var rae *types.ResourceExistsException
+		if errors.As(err, &rae) {
+			return kesdk.ErrKeyExists
 		}
+
 		return fmt.Errorf("aws: failed to create '%s': %v", name, err)
 	}
 	return nil
@@ -167,21 +200,35 @@ func (s *Store) Set(ctx context.Context, name string, value []byte) error {
 // Get returns the value associated with the given key.
 // If no entry for key exists, it returns kes.ErrKeyNotFound.
 func (s *Store) Get(ctx context.Context, name string) ([]byte, error) {
-	response, err := s.client.GetSecretValueWithContext(ctx, &secretsmanager.GetSecretValueInput{
+	response, err := s.client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{
 		SecretId: aws.String(name),
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, err
 		}
-		if err, ok := err.(awserr.Error); ok {
-			switch err.Code() {
-			case secretsmanager.ErrCodeDecryptionFailure:
+
+		var dfe *types.DecryptionFailure
+		if errors.As(err, &dfe) {
+			return nil, fmt.Errorf("aws: cannot access '%s': %v", name, err)
+		}
+
+		var rnfe *types.ResourceNotFoundException
+		if errors.As(err, &rnfe) {
+			return nil, kesdk.ErrKeyNotFound
+		}
+
+		// Check for other API errors
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) {
+			switch apiErr.ErrorCode() {
+			case "DecryptionFailureException":
 				return nil, fmt.Errorf("aws: cannot access '%s': %v", name, err)
-			case secretsmanager.ErrCodeResourceNotFoundException:
+			case "ResourceNotFoundException":
 				return nil, kesdk.ErrKeyNotFound
 			}
 		}
+
 		return nil, fmt.Errorf("aws: failed to read '%s': %v", name, err)
 	}
 
@@ -204,7 +251,7 @@ func (s *Store) Get(ctx context.Context, name string) ([]byte, error) {
 // Delete removes the key-value pair from the AWS SecretsManager, if
 // it exists.
 func (s *Store) Delete(ctx context.Context, name string) error {
-	_, err := s.client.DeleteSecretWithContext(ctx, &secretsmanager.DeleteSecretInput{
+	_, err := s.client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
 		SecretId:                   aws.String(name),
 		ForceDeleteWithoutRecovery: aws.Bool(true),
 	})
@@ -212,11 +259,20 @@ func (s *Store) Delete(ctx context.Context, name string) error {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return err
 		}
-		if err, ok := err.(awserr.Error); ok {
-			if err.Code() == secretsmanager.ErrCodeResourceNotFoundException {
+
+		var rnfe *types.ResourceNotFoundException
+		if errors.As(err, &rnfe) {
+			return kesdk.ErrKeyNotFound
+		}
+
+		// Check for other API errors
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) {
+			if apiErr.ErrorCode() == "ResourceNotFoundException" {
 				return kesdk.ErrKeyNotFound
 			}
 		}
+
 		return fmt.Errorf("aws: failed to delete '%s': %v", name, err)
 	}
 	return nil
@@ -236,19 +292,22 @@ func (s *Store) Delete(ctx context.Context, name string) error {
 // returned prefix is empty.
 func (s *Store) List(ctx context.Context, prefix string, n int) ([]string, string, error) {
 	var names []string
-	err := s.client.ListSecretsPagesWithContext(ctx, &secretsmanager.ListSecretsInput{}, func(page *secretsmanager.ListSecretsOutput, lastPage bool) bool {
-		for _, secret := range page.SecretList {
-			names = append(names, *secret.Name)
+
+	paginator := secretsmanager.NewListSecretsPaginator(s.client, &secretsmanager.ListSecretsInput{})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, "", err
 		}
 
-		// The pagination is stopped once we return false.
-		// If lastPage is true then we reached the end. Therefore,
-		// we return !lastPage which then is false.
-		return !lastPage
-	})
-	if err != nil {
-		return nil, "", err
+		for _, secret := range page.SecretList {
+			if secret.Name != nil {
+				names = append(names, *secret.Name)
+			}
+		}
 	}
+
 	return keystore.List(names, prefix, n)
 }
 

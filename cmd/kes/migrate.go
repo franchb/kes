@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"aead.dev/mtls"
 	"github.com/minio/kes/internal/cli"
 	"github.com/minio/kes/internal/crypto"
 	"github.com/minio/kes/kesconf"
@@ -183,7 +184,7 @@ func migrate(args []string) {
 	}
 
 	// Migrate from a KES backend (--from) to a KMS server (-s / --server).
-	apiKey, err := kms.ParseAPIKey(kmsAPIKey)
+	apiKey, err := mtls.ParsePrivateKey(kmsAPIKey)
 	cli.Assert(err == nil, err)
 
 	client, err := kms.NewClient(&kms.Config{
