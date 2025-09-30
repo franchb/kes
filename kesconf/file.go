@@ -412,9 +412,9 @@ type EncryptedFSKeyStore struct {
 	Path string
 }
 
-// Connect returns a kv.Store that stores key-value pairs in a path on the filesystem.
+// Connect returns a kes.KeyStore that stores encrypted key-value pairs in a path on the filesystem.
 func (s *EncryptedFSKeyStore) Connect(context.Context) (kes.KeyStore, error) {
-	return efs.NewStore(s.MasterKeyPath, s.MasterKeyCipher, s.Path)
+    return efs.NewStore(s.MasterKeyPath, s.MasterKeyCipher, s.Path)
 }
 
 // VaultKeyStore is a structure containing the configuration
