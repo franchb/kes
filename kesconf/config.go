@@ -421,23 +421,27 @@ func ymlToKeyStore(y *ymlFile) (KeyStore, error) {
 		}
 	}
 
-	// Encrypted FS Keystore
-	if y.KeyStore.EncryptedFS != nil {
-		if y.KeyStore.EncryptedFS.MasterKeyPath.Value == "" {
-			return nil, errors.New("kesconf: invalid encryptedfs keystore: no master key path specified")
-		}
-		if y.KeyStore.EncryptedFS.MasterKeyCipher.Value == "" {
-			return nil, errors.New("kesconf: invalid encryptedfs keystore: no master key cipher specified")
-		}
-		if y.KeyStore.EncryptedFS.Path.Value == "" {
-			return nil, errors.New("kesconf: invalid encryptedfs keystore: no path specified")
-		}
-		keystore = &EncryptedFSKeyStore{
-			MasterKeyPath:   y.KeyStore.EncryptedFS.MasterKeyPath.Value,
-			MasterKeyCipher: y.KeyStore.EncryptedFS.MasterKeyCipher.Value,
-			Path:            y.KeyStore.EncryptedFS.Path.Value,
-		}
-	}
+    // Encrypted FS Keystore
+    if y.KeyStore.EncryptedFS != nil {
+        // Ensure only one keystore type is configured
+        if keystore != nil {
+            return nil, errors.New("kesconf: invalid keystore config: more than once keystore specified")
+        }
+        if y.KeyStore.EncryptedFS.MasterKeyPath.Value == "" {
+            return nil, errors.New("kesconf: invalid encryptedfs keystore: no master key path specified")
+        }
+        if y.KeyStore.EncryptedFS.MasterKeyCipher.Value == "" {
+            return nil, errors.New("kesconf: invalid encryptedfs keystore: no master key cipher specified")
+        }
+        if y.KeyStore.EncryptedFS.Path.Value == "" {
+            return nil, errors.New("kesconf: invalid encryptedfs keystore: no path specified")
+        }
+        keystore = &EncryptedFSKeyStore{
+            MasterKeyPath:   y.KeyStore.EncryptedFS.MasterKeyPath.Value,
+            MasterKeyCipher: y.KeyStore.EncryptedFS.MasterKeyCipher.Value,
+            Path:            y.KeyStore.EncryptedFS.Path.Value,
+        }
+    }
 
 	// Hashicorp Vault Keystore
 	if y.KeyStore.Vault != nil {

@@ -398,7 +398,7 @@ func (s *FSKeyStore) Connect(context.Context) (kes.KeyStore, error) {
 // EncryptedFSKeyStore is a structure containing the configuration
 // for a simple filesystem keystore.
 //
-// A EncryptedFSKeyStore should only be used when testing a KES server.
+// An EncryptedFSKeyStore should only be used when testing a KES server.
 type EncryptedFSKeyStore struct {
 	// MasterKeyPath is the path of the file containing the master key.
 	MasterKeyPath string
