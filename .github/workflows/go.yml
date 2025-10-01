@@ -36,7 +36,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           version: v1.64.5
           args: --config ./.golangci.yml --timeout=5m
