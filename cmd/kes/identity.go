@@ -29,7 +29,6 @@ import (
 	"github.com/minio/kes/internal/cli"
 	"github.com/minio/kes/internal/https"
 	"github.com/minio/kms-go/kes"
-	sdk "github.com/minio/kms-go/kes"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/term"
 )
@@ -76,7 +75,7 @@ func identityCmd(args []string) {
 	}
 
 	if flags.NArg() == 0 {
-		key, err := sdk.GenerateAPIKey(nil)
+		key, err := kes.GenerateAPIKey(nil)
 		if err != nil {
 			cli.Exitf("failed to generate API key: %v", err)
 		}
@@ -107,7 +106,7 @@ func identityCmd(args []string) {
 		return
 	}
 
-	printIdentity := func(identity sdk.Identity) {
+	printIdentity := func(identity kes.Identity) {
 		if !cli.IsTerminal() {
 			fmt.Print(identity)
 			return
@@ -122,7 +121,7 @@ func identityCmd(args []string) {
 		fmt.Fprint(buf, "or certificate and can be shared securely.")
 		fmt.Println(tui.NewStyle().Border(tui.HiddenBorder()).Padding(0, 0, 0, 0).Render(buf.String()))
 	}
-	if key, err := sdk.ParseAPIKey(flags.Arg(0)); err == nil {
+	if key, err := kes.ParseAPIKey(flags.Arg(0)); err == nil {
 		printIdentity(key.Identity())
 		return
 	}
@@ -147,7 +146,7 @@ func identityCmd(args []string) {
 				cli.Exit(err)
 			}
 			h := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
-			printIdentity(sdk.Identity(hex.EncodeToString(h[:])))
+			printIdentity(kes.Identity(hex.EncodeToString(h[:])))
 			return
 		case strings.Contains(block.Type, "PRIVATE KEY"): // Type may be PRIVATE KEY, EC PRIVATE KEY, ...
 			priv, err := x509.ParsePKCS8PrivateKey(block.Bytes)
@@ -330,7 +329,7 @@ func newIdentityCmd(args []string) {
 		if err = os.WriteFile(keyPath, keyPem, 0o600); err != nil {
 			cli.Fatalf("failed to create private key: %v", err)
 		}
-		if err = os.WriteFile(certPath, certPem, 0o644); err != nil {
+		if err = os.WriteFile(certPath, certPem, 0o600); err != nil {
 			os.Remove(keyPath)
 			cli.Fatalf("failed to create certificate: %v", err)
 		}

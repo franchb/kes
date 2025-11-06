@@ -457,6 +457,7 @@ func (s *Server) listen(ctx context.Context, ln net.Listener, conf *Config) (net
 	s.started = true
 
 	return tls.NewListener(ln, &tls.Config{
+		MinVersion: tls.VersionTLS12,
 		GetConfigForClient: func(*tls.ClientHelloInfo) (*tls.Config, error) {
 			return s.tls.Load(), nil
 		},

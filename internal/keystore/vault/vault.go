@@ -258,14 +258,14 @@ func (s *Store) Create(ctx context.Context, name string, value []byte) error {
 
 	if s.config.Transit != nil {
 		encLocation := path.Join(s.config.Transit.Engine, "encrypt", s.config.Transit.KeyName)
-		req := s.client.Client.NewRequest(http.MethodPost, "/v1/"+encLocation)
+		req := s.client.NewRequest(http.MethodPost, "/v1/"+encLocation)
 		if err := req.SetJSONBody(map[string]any{
 			"plaintext": base64.StdEncoding.EncodeToString(value),
 		}); err != nil {
 			return fmt.Errorf("vault: failed to create '%s': failed to encrypt key: %v", location, err)
 		}
 
-		resp, err := s.client.Client.RawRequestWithContext(ctx, req)
+		resp, err := s.client.RawRequestWithContext(ctx, req)
 		if err != nil {
 			return fmt.Errorf("vault: failed to create '%s': failed to encrypt key: %v", location, err)
 		}
@@ -323,11 +323,11 @@ func (s *Store) Create(ctx context.Context, name string, value []byte) error {
 	// We expect HTTP 204 (No Content) when a key got created successfully.
 	// So, we check that Vault response with 204. Otherwise, we return an
 	// error.
-	req := s.client.Client.NewRequest(http.MethodPut, "/v1/"+location)
+	req := s.client.NewRequest(http.MethodPut, "/v1/"+location)
 	if err := req.SetJSONBody(data); err != nil {
 		return fmt.Errorf("vault: failed to create '%s': %v", location, err)
 	}
-	resp, err := s.client.Client.RawRequestWithContext(ctx, req)
+	resp, err := s.client.RawRequestWithContext(ctx, req)
 	if err != nil {
 		return fmt.Errorf("vault: failed to create '%s': %v", location, err)
 	}
@@ -389,14 +389,14 @@ func (s *Store) Get(ctx context.Context, name string) ([]byte, error) {
 		}
 
 		decLocation := path.Join(s.config.Transit.Engine, "decrypt", s.config.Transit.KeyName)
-		req := s.client.Client.NewRequest(http.MethodPost, "/v1/"+decLocation)
+		req := s.client.NewRequest(http.MethodPost, "/v1/"+decLocation)
 		if err := req.SetJSONBody(map[string]any{
 			"ciphertext": value,
 		}); err != nil {
 			return nil, fmt.Errorf("vault: failed to read '%s': failed to decrypt key: %v", location, err)
 		}
 
-		resp, err := s.client.Client.RawRequestWithContext(ctx, req)
+		resp, err := s.client.RawRequestWithContext(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("vault: failed to read '%s': failed to decrypt key: %v", location, err)
 		}

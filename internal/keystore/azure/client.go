@@ -166,7 +166,7 @@ func (c *client) GetFirstVersion(ctx context.Context, name string) (string, stat
 			Message:    fmt.Sprintf("There are too many versions of %q.", name),
 		}, nil
 	}
-	if len(page.SecretPropertiesListResult.Value) == 0 {
+	if len(page.Value) == 0 {
 		return "", status{
 			StatusCode: http.StatusNotFound,
 			ErrorCode:  "NoObjectVersions",
@@ -177,7 +177,7 @@ func (c *client) GetFirstVersion(ctx context.Context, name string) (string, stat
 		version   string     // most recent Secret version
 		createdAt *time.Time // most recent createdAt UNIX timestamp
 	)
-	for _, v := range page.SecretPropertiesListResult.Value {
+	for _, v := range page.Value {
 		if v.Attributes != nil && v.Attributes.Created != nil && v.ID != nil {
 			if createdAt == nil || createdAt.After(*v.Attributes.Created) {
 				createdAt = v.Attributes.Created

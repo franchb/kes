@@ -78,7 +78,7 @@ func (ro Route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	received := time.Now()
 
 	if r.Method != ro.Method {
-		if !(r.Method == http.MethodPost && ro.Method == http.MethodPut) {
+		if r.Method != http.MethodPost || ro.Method != http.MethodPut {
 			w.Header().Set(headers.Accept, ro.Method)
 			resp.Failf(http.StatusMethodNotAllowed, "received method '%s' expected '%s'", r.Method, ro.Method)
 			return

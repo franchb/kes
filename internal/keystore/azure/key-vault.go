@@ -298,7 +298,7 @@ func (s *Store) List(ctx context.Context, prefix string, n int) ([]string, strin
 			}
 			return nil, "", fmt.Errorf("azure: failed to list keys: %s (%s)", stat.ErrorCode, stat.Message)
 		}
-		for _, v := range page.SecretPropertiesListResult.Value {
+		for _, v := range page.Value {
 			if v.ID != nil {
 				names = append(names, (*v.ID).Name())
 			}

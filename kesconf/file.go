@@ -414,7 +414,7 @@ type EncryptedFSKeyStore struct {
 
 // Connect returns a kes.KeyStore that stores encrypted key-value pairs in a path on the filesystem.
 func (s *EncryptedFSKeyStore) Connect(context.Context) (kes.KeyStore, error) {
-    return efs.NewStore(s.MasterKeyPath, s.MasterKeyCipher, s.Path)
+	return efs.NewStore(s.MasterKeyPath, s.MasterKeyCipher, s.Path)
 }
 
 // VaultKeyStore is a structure containing the configuration
@@ -855,7 +855,8 @@ func (s *EntrustKeyControlKeyStore) Connect(ctx context.Context) (kes.KeyStore, 
 		Username: s.Username,
 		Password: s.Password,
 		TLS: &tls.Config{
-			RootCAs: rootCAs,
+			MinVersion: tls.VersionTLS13,
+			RootCAs:    rootCAs,
 		},
 	})
 }

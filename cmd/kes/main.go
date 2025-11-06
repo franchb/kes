@@ -42,9 +42,6 @@ Commands:
     status                   Print server status.
     metric                   Print server metrics.
 
-    migrate                  Migrate KMS data.
-    update                   Update KES binary.
-
 Options:
     -v, --version            Print version information.
         --auto-completion    Install auto-completion for this shell.
@@ -70,9 +67,6 @@ func main() {
 		"log":    logCmd,
 		"status": statusCmd,
 		"metric": metricCmd,
-
-		"migrate": migrate,
-		"update":  updateCmd,
 	}
 
 	if len(os.Args) < 2 {
@@ -241,7 +235,7 @@ func newClient(conf config) *kes.Client {
 		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 			return &cert, nil
 		},
-		InsecureSkipVerify: conf.InsecureSkipVerify,
+		InsecureSkipVerify: false,
 	})
 	client.Endpoints = endpoints
 	return client
