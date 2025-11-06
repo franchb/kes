@@ -196,5 +196,5 @@ func isCompletionInstalled(filename, autoloadCmd, completeCmd string) (autoload,
 	if err = file.Close(); err != nil {
 		cli.Fatal(err)
 	}
-	return
+	return autoload, complete
 }

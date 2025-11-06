@@ -81,7 +81,8 @@ func Connect(ctx context.Context, config *Config) (c *Store, err error) {
 			Client: http.Client{
 				Transport: &http.Transport{
 					TLSClientConfig: &tls.Config{
-						RootCAs: rootCAs,
+						MinVersion: tls.VersionTLS13,
+						RootCAs:    rootCAs,
 					},
 					Proxy: http.ProxyFromEnvironment,
 					DialContext: (&net.Dialer{

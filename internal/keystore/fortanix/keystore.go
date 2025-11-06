@@ -84,7 +84,8 @@ func Connect(ctx context.Context, config *Config) (*Store, error) {
 			return nil, err
 		}
 		tlsConfig = &tls.Config{
-			RootCAs: rootCAs,
+			MinVersion: tls.VersionTLS13,
+			RootCAs:    rootCAs,
 		}
 	}
 
@@ -334,8 +335,8 @@ func (s *Store) Delete(ctx context.Context, name string) error {
 		return fmt.Errorf("fortanix: failed to delete '%s': %v", name, err)
 	}
 	if resp.StatusCode != http.StatusNoContent {
-		switch err = parseErrorResponse(resp); {
-		case err == nil:
+		switch err = parseErrorResponse(resp); err {
+		case nil:
 			return fmt.Errorf("fortanix: failed to delete '%s': %s (%d)", name, resp.Status, resp.StatusCode)
 		default:
 			return fmt.Errorf("fortanix: failed to delete '%s': %v", name, err)

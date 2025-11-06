@@ -44,10 +44,10 @@ type Cow[K comparable, V any] struct {
 func (c *Cow[K, V]) Get(key K) (v V, ok bool) {
 	m := c.ptr.Load()
 	if m == nil {
-		return
+		return v, ok
 	}
 	v, ok = (*m)[key]
-	return
+	return v, ok
 }
 
 // Set adds the key value pair, or replaces an

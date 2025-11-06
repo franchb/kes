@@ -1,29 +1,44 @@
-linters-settings:
-  misspell:
-    locale: US
-
-  staticcheck:
-    checks: ["all", "-SA1019"]
-
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
-    - typecheck
-    - goimports
-    - misspell
-    - staticcheck
     - govet
-    - revive
     - ineffassign
-    - gosimple
-    - unused
+    - misspell
     - prealloc
+    - revive
+    - staticcheck
     - unconvert
+    # TODO - gosec
+    - unused
+  settings:
+    misspell:
+      locale: US
+    staticcheck:
+      checks:
+        - all
+        - -SA1019
+        - -ST1000
+  exclusions:
+    generated: lax
+    rules:
+      - path: (.+)\.go$
+        text: 'var-naming: don''t use ALL_CAPS in Go names; use CamelCase'
+      - path: (.+)\.go$
+        text: 'package-comments: should have a package comment'
+      - path: (.+)\.go$
+        text: 'exitAfterDefer:'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
     - gofumpt
-
-issues:
-  exclude-use-default: false
-  exclude:
-      - "var-naming: don't use ALL_CAPS in Go names; use CamelCase"
-      - "package-comments: should have a package comment"
-      - "exitAfterDefer:"
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

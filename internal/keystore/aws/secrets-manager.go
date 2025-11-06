@@ -116,7 +116,8 @@ type customEndpointResolver struct {
 }
 
 func (r *customEndpointResolver) ResolveEndpoint(ctx context.Context,
-	params secretsmanager.EndpointParameters) (smithyendpoints.Endpoint, error) {
+	params secretsmanager.EndpointParameters,
+) (smithyendpoints.Endpoint, error) {
 	return secretsmanager.NewDefaultEndpointResolverV2().ResolveEndpoint(ctx, params)
 }
 
