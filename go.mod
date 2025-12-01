@@ -20,7 +20,7 @@ require (
 	github.com/minio/kms-go/kes v0.3.1
 	github.com/muesli/termenv v0.16.0
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/common v0.67.2
+	github.com/prometheus/common v0.67.4
 	github.com/spf13/pflag v1.0.10
 	github.com/tinylib/msgp v1.5.0
 	golang.org/x/crypto v0.45.0
