@@ -373,7 +373,7 @@ func startDevServer(addr string) error {
 	fmt.Fprintln(buf)
 	fmt.Fprintf(buf, "%-33s https://min.io/docs/kes\n", blue.Render("Docs"))
 	fmt.Fprintln(buf)
-	fmt.Fprintf(buf, "%-33s %s\n", blue.Render("API Key"), apiKey.String())
+	fmt.Fprintf(buf, "%-33s [REDACTED]\n", blue.Render("API Key"))
 	fmt.Fprintf(buf, "%-33s %s\n", blue.Render("Admin"), apiKey.Identity())
 	fmt.Fprintf(buf, "%-33s error=stderr level=%s\n", blue.Render("Logs"), srv.ErrLevel.Level())
 	fmt.Fprintf(buf, "%-11s audit=stdout level=%s\n", " ", srv.AuditLevel.Level())
