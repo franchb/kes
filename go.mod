@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.41.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.6
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.6
-	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.40.2
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.41.0
 	github.com/aws/smithy-go v1.24.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/hashicorp/vault/api v1.22.0
